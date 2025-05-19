@@ -1,65 +1,47 @@
 function player(name, token) {
-
-    let getName = () => name;
-    let getToken = () => token;
     let score = 0;
-    let getScore = () => score;
-    let incScore = () => score++;
-
-    return { getName, getToken, getScore, incScore};
+    return {
+        getName: () => name,
+        getToken: () => token,
+        getScore: () => score,
+        incScore: () => score++
+    };
 }
 
 function cell() {
     let value = 0;
-
-    let getVal = () => value;
-    let setVal = (token) => {
-        value = token;
-    }
-
-    return {getVal, setVal};
+    return {
+        getVal: () => value,
+        setVal: (token) => { value = token; }
+    };
 }
 
 function gameBoard() {
+    let board = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => cell()));
 
-    let board = [];
-
-    for(let i =0; i < 3; i++){
-        board[i] = [];
-        for(let j = 0; j < 3; j++){
-            board[i].push(cell());
+    function addToken(row, col, token) {
+        if (board[row][col].getVal() !== 0) {
+            console.log(`Cell (${row}, ${col}) is already taken.`);
+            return false;
         }
-    }
-
-    function addToken (row, col, token) {
         board[row][col].setVal(token);
+        return true;
     }
 
     function roundWon() {
-        for(let i =0; i < 3; i++){ //checking for rows
+        // Rows
+        for (let i = 0; i < 3; i++) {
             let x = board[i][0].getVal();
-
-            for(let j =0; j < 3; j++){
-                if(board[i][j].getVal() != x) break;
-                else {
-                    if(j == 2 && board[i][j].getVal() == x) return true;
-                }
-            }
+            if (x !== 0 && board[i][1].getVal() === x && board[i][2].getVal() === x) return true;
         }
 
-        for(let i =0; i < 3; i++){ //checking for columns
+        // Columns
+        for (let i = 0; i < 3; i++) {
             let x = board[0][i].getVal();
-            if(x == 0) continue;
-
-            for(let j =0; j < 3; j++){
-                if(board[j][i].getVal() != x) break;
-                else {
-                    if(j == 2 && board[i][j].getVal() ==x) return true;
-                }
-            }
+            if (x !== 0 && board[1][i].getVal() === x && board[2][i].getVal() === x) return true;
         }
-        
-        //Diagonal
+
+        // Diagonal
         let x = board[0][0].getVal();
         if (x !== 0 && board[1][1].getVal() === x && board[2][2].getVal() === x) return true;
 
@@ -71,76 +53,109 @@ function gameBoard() {
     }
 
     function isBoardFull() {
-        for(let i =0; i < 3; i++){
-            for(let j =0; j < 3; j++){
-                if(board[i][j].getVal() == 0) return false;
-            }
-        }
-        return true;
+        return board.every(row => row.every(cell => cell.getVal() !== 0));
     }
 
     function reset() {
-        for(let i =0; i < 3; i++){
-            for(let j =0; j < 3; j++){
-                board[i][j].setVal(0);
-            }
-        }
+        board.forEach(row => row.forEach(cell => cell.setVal(0)));
     }
 
     function printBoard() {
-        for(let i = 0; i < 3; i++){
-            console.log(board[i].map(cell => cell.getVal()).join(" | "));
-        }
-    }
+    console.log("\nBoard:");
+    board.forEach(row => {
+      // Use getVal() and show '_' for empty
+      const line = row.map(cell => {
+        const v = cell.getVal();
+        return v === 0 ? '_' : v;
+      }).join(' | ');
+      console.log(line);
+    });
+    console.log();
+  }
 
-    return {addToken, roundWon, printBoard, reset, isBoardFull};
+    return { addToken, roundWon, isBoardFull, reset, printBoard };
 }
 
-function gameController(rounds, player1, player2){
 
-    let board = gameBoard();
-    let roundsPlayed = 0;
+function playGame(rounds, p1, p2) {
+  const players = [p1, p2];
+  const board = gameBoard();
+  let scores = { [p1.getName()]: 0, [p2.getName()]: 0 };
 
-    function playTurn(row, col, player){
+  // Predefined moves to simulate
+  const moves = [
+    [0, 0], [1, 1], [0, 1], [1, 0], [0, 2], // p1 wins
+    [2, 2], [2, 1], [1, 2], [2, 0], [1, 1], // draw
+    [0, 0], [1, 0], [0, 1], [1, 1], [0, 2], // p1 wins
+  ];
 
-        board.addToken(row, col, player.getToken());
-        if(board.roundWon()) {
-                player.incScore();
-                roundsPlayed++;
-                board.printBoard();
-                board.reset();
-                return true;
-            }
-            else if(board.isBoardFull()) {
-                roundsPlayed++;
-                board.printBoard();
-                board.reset();
-                return true;
-            }
-            
-            board.printBoard();
-            return false;
+  let moveIdx = 0;
+  for (let round = 1; round <= rounds; round++) {
+    console.log(`\n=== Round ${round} ===`);
+    board.reset();
+    board.printBoard();
+
+    let currentPlayer = 0;
+    while (true) {
+      if (moveIdx >= moves.length) break;
+      const [r, c] = moves[moveIdx++];
+      const player = players[currentPlayer];
+
+      if (!board.addToken(r, c, player.getToken())) {
+        console.log(`Invalid: ${player.getName()} at (${r},${c}), retrying`);
+        continue; // same player tries again
+      }
+
+      board.printBoard();
+
+      if (board.roundWon()) {
+        console.log(`${player.getName()} wins!`);
+        player.incScore();
+        break;
+      }
+      if (board.isBoardFull()) {
+        console.log("It's a draw!");
+        break;
+      }
+
+      currentPlayer = 1 - currentPlayer; // switch the player
     }
+  }
 
-    function playRound() {
-        while(roundsPlayed != rounds){
-            let isRoundOver = playTurn(row, col, player1);            
-            if(isRoundOver == true) continue;
-
-            playTurn(row, col, player2);
-        }
-
-        console.log(`Final Scores:`);
-        console.log(`${player1.getName()}: ${player1.getScore()}`);
-        console.log(`${player2.getName()}: ${player2.getScore()}`);
-    }
-
-    return { playRound };
-
+  console.log("\n=== Final Scores ===");
+  players.forEach(p =>
+    console.log(`${p.getName()}: ${p.getScore()}`)
+  );
 }
 
-let player1 = player("Anirvesh", "X");
-let player2 = player("Adarsh", "O");
 
+const openBtn = document.getElementById('open-modal');
+const backdrop = document.getElementById('modal-backdrop');
+const closeBtn = document.querySelector('#modal .close');
+const form = document.getElementById('setup-form');
 
-gameController(3, player1, player2).playRound();
+function toggleModal(show) {
+    backdrop.style.display = show ? 'flex' : 'none';
+}
+
+openBtn.addEventListener('click', () => toggleModal(true));
+closeBtn.addEventListener('click', () => toggleModal(false));
+backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) toggleModal(false);
+});
+
+form.addEventListener('submit', e => {
+    e.preventDefault();
+    const rounds = parseInt(document.getElementById('rounds').value, 10);
+    const p1 = {
+    name: document.getElementById('player1-name').value.trim(),
+    token: document.getElementById('player1-mark').value.trim()
+    };
+    const p2 = {
+    name: document.getElementById('player2-name').value.trim(),
+    token: document.getElementById('player2-mark').value.trim()
+    };
+    toggleModal(false);
+    
+    playGame(rounds, p1, p2);
+});
